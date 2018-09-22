@@ -75,12 +75,10 @@ int input_position = 0;
 static char password[512];
 static bool beep = false;
 bool debug_mode = false;
-bool unlock_indicator = true;
 char *modifier_string = NULL;
 static bool dont_fork = false;
 struct ev_loop *main_loop;
 static struct ev_timer *clear_auth_wrong_timeout;
-static struct ev_timer *clear_indicator_timeout;
 static struct ev_timer *discard_passwd_timeout;
 extern unlock_state_t unlock_state;
 extern auth_state_t auth_state;
@@ -258,11 +256,6 @@ static void clear_auth_wrong(EV_P_ ev_timer *w, int revents) {
     }
 }
 
-static void clear_indicator_cb(EV_P_ ev_timer *w, int revents) {
-    clear_indicator();
-    STOP_TIMER(clear_indicator_timeout);
-}
-
 static void clear_input(void) {
     input_position = 0;
     clear_password_memory();
@@ -351,28 +344,17 @@ static void input_done(void) {
     auth_state = STATE_AUTH_WRONG;
     failed_attempts += 1;
     clear_input();
-    if (unlock_indicator)
-        redraw_screen();
 
     /* Clear this state after 2 seconds (unless the user enters another
      * password during that time). */
     ev_now_update(main_loop);
     START_TIMER(clear_auth_wrong_timeout, TSTAMP_N_SECS(2), clear_auth_wrong);
 
-    /* Cancel the clear_indicator_timeout, it would hide the unlock indicator
-     * too early. */
-    STOP_TIMER(clear_indicator_timeout);
-
     /* beep on authentication failure, if enabled */
     if (beep) {
         xcb_bell(conn, 100);
         xcb_flush(conn);
     }
-}
-
-static void redraw_timeout(EV_P_ ev_timer *w, int revents) {
-    redraw_screen();
-    STOP_TIMER(w);
 }
 
 static bool skip_without_validation(void) {
@@ -465,9 +447,6 @@ static void handle_key_press(xcb_key_press_event_t *event) {
                 ksym == XKB_KEY_Escape) {
                 DEBUG("C-u pressed\n");
                 clear_input();
-                /* Also hide the unlock indicator */
-                if (unlock_indicator)
-                    clear_indicator();
                 return;
             }
             break;
@@ -486,7 +465,6 @@ static void handle_key_press(xcb_key_press_event_t *event) {
                 break;
 
             if (input_position == 0) {
-                START_TIMER(clear_indicator_timeout, 1.0, clear_indicator_cb);
                 unlock_state = STATE_NOTHING_TO_DELETE;
                 redraw_screen();
                 return;
@@ -496,9 +474,6 @@ static void handle_key_press(xcb_key_press_event_t *event) {
             u8_dec(password, &input_position);
             password[input_position] = '\0';
 
-            /* Hide the unlock indicator after a bit if the password buffer is
-             * empty. */
-            START_TIMER(clear_indicator_timeout, 1.0, clear_indicator_cb);
             unlock_state = STATE_BACKSPACE_ACTIVE;
             redraw_screen();
             unlock_state = STATE_KEY_PRESSED;
@@ -526,16 +501,6 @@ static void handle_key_press(xcb_key_press_event_t *event) {
     memcpy(password + input_position, buffer, n - 1);
     input_position += n - 1;
     DEBUG("current password = %.*s\n", input_position, password);
-
-    if (unlock_indicator) {
-        unlock_state = STATE_KEY_ACTIVE;
-        redraw_screen();
-        unlock_state = STATE_KEY_PRESSED;
-
-        struct ev_timer *timeout = NULL;
-        START_TIMER(timeout, TSTAMP_N_SECS(0.25), redraw_timeout);
-        STOP_TIMER(clear_indicator_timeout);
-    }
 
     START_TIMER(discard_passwd_timeout, TSTAMP_N_MINS(3), discard_passwd_cb);
 }
@@ -888,7 +853,6 @@ int main(int argc, char *argv[]) {
         {"pointer", required_argument, NULL, 'p'},
         {"debug", no_argument, NULL, 0},
         {"help", no_argument, NULL, 'h'},
-        {"no-unlock-indicator", no_argument, NULL, 'u'},
         {"image", required_argument, NULL, 'i'},
         {"tiling", no_argument, NULL, 't'},
         {"ignore-empty-password", no_argument, NULL, 'e'},
@@ -932,9 +896,6 @@ int main(int argc, char *argv[]) {
 
                 break;
             }
-            case 'u':
-                unlock_indicator = false;
-                break;
             case 'i':
                 image_path = strdup(optarg);
                 break;
@@ -968,14 +929,10 @@ int main(int argc, char *argv[]) {
 #endif
                 break;
             default:
-                errx(EXIT_FAILURE, "Syntax: i3lock [-v] [-n] [-b] [-d] [-c color] [-u] [-p win|default]"
+                errx(EXIT_FAILURE, "Syntax: i3lock [-v] [-n] [-b] [-d] [-c color] [-u] [-p]"
                                    " [-i image.png] [-t] [-e] [-I timeout] [-f] [-l]");
         }
     }
-
-    /* We need (relatively) random numbers for highlighting a random part of
-     * the unlock indicator upon keypresses. */
-    srand(time(NULL));
 
 #ifndef __OpenBSD__
     /* Initialize PAM */
