@@ -23,8 +23,8 @@ i3lock \- improved screen locker
 .RB [\|\-c
 .IR color \|]
 .RB [\|\-t\|]
-.RB [\|\-p
-.IR pointer\|]
+.RB [\|\-p\|]
+.RB [\|\-u\|]
 .RB [\|\-e\|]
 .RB [\|\-l\|]
 
@@ -76,13 +76,8 @@ If an image is specified (via \-i) it will display the image tiled all over the 
 (if it is a multi-monitor setup, the image is visible on all screens).
 
 .TP
-.BI \-p\  win|default \fR,\ \fB\-\-pointer= win|default
-If you specify "default",
-.B i3lock
-does not hide your mouse pointer. If you specify "win",
-.B i3lock
-displays a hardcoded Windows-Pointer (thus enabling you to mess with your
-friends by using a screenshot of a Windows desktop as a locking-screen).
+.BI \-p, \-\-pointer
+Do not hide cursor.
 
 .TP
 .B \-e, \-\-ignore-empty-password

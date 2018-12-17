@@ -847,7 +847,7 @@ int main(int argc, char *argv[]) {
         {"beep", no_argument, NULL, 'b'},
         {"dpms", no_argument, NULL, 'd'},
         {"color", required_argument, NULL, 'c'},
-        {"pointer", required_argument, NULL, 'p'},
+        {"pointer", no_argument, NULL, 'p'},
         {"debug", no_argument, NULL, 0},
         {"help", no_argument, NULL, 'h'},
         {"image", required_argument, NULL, 'i'},
@@ -899,13 +899,7 @@ int main(int argc, char *argv[]) {
                 tile = true;
                 break;
             case 'p':
-                if (!strcmp(optarg, "win")) {
-                    curs_choice = CURS_WIN;
-                } else if (!strcmp(optarg, "default")) {
-                    curs_choice = CURS_DEFAULT;
-                } else {
-                    errx(EXIT_FAILURE, "i3lock: Invalid pointer type given. Expected one of \"win\" or \"default\".\n");
-                }
+                curs_choice = CURS_DEFAULT;
                 break;
             case 'e':
                 ignore_empty_password = true;
