@@ -82,8 +82,6 @@ static struct ev_timer *clear_auth_wrong_timeout;
 static struct ev_timer *discard_passwd_timeout;
 extern unlock_state_t unlock_state;
 extern auth_state_t auth_state;
-int failed_attempts = 0;
-bool show_failed_attempts = false;
 bool retry_verification = false;
 
 static struct xkb_state *xkb_state;
@@ -342,7 +340,6 @@ static void input_done(void) {
     }
 
     auth_state = STATE_AUTH_WRONG;
-    failed_attempts += 1;
     clear_input();
 
     /* Clear this state after 2 seconds (unless the user enters another
@@ -857,7 +854,6 @@ int main(int argc, char *argv[]) {
         {"tiling", no_argument, NULL, 't'},
         {"ignore-empty-password", no_argument, NULL, 'e'},
         {"inactivity-timeout", required_argument, NULL, 'I'},
-        {"show-failed-attempts", no_argument, NULL, 'f'},
         {"lock-console", no_argument, NULL, 'l'},
         {NULL, no_argument, NULL, 0}};
 
@@ -866,7 +862,7 @@ int main(int argc, char *argv[]) {
     if ((username = pw->pw_name) == NULL)
         errx(EXIT_FAILURE, "pw->pw_name is NULL.\n");
 
-    char *optstring = "hvnbdc:p:ui:teI:fl";
+    char *optstring = "hvnbdc:p:ui:teI:l";
     while ((o = getopt_long(argc, argv, optstring, longopts, &longoptind)) != -1) {
         switch (o) {
             case 'v':
@@ -918,8 +914,6 @@ int main(int argc, char *argv[]) {
                 if (strcmp(longopts[longoptind].name, "debug") == 0)
                     debug_mode = true;
                 break;
-            case 'f':
-                show_failed_attempts = true;
                 break;
             case 'l':
 #if defined(__linux__)
