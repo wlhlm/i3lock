@@ -1,5 +1,5 @@
-i3lock - improved screen locker
-===============================
+i3lock - improved screen locker (fork)
+======================================
 [i3lock](https://i3wm.org/i3lock/)> is a simple screen locker like slock.
 After starting it, you will see a white screen (you can configure the
 color/an image). You can return to your screen by entering your password.
@@ -19,6 +19,18 @@ or similar, use existing tooling to do this before passing it to i3lock.
 
 - i3lock uses PAM and therefore is compatible with LDAP etc.
   On OpenBSD i3lock uses the bsd_auth(3) framework.
+
+Fork
+----
+
+This a personal fork of i3lock with the following changes:
+
+- removed unlock indicator
+- removed windows pointer (seemed more like a gimmick rather than being
+  useful)
+- add ability to show a different color, or image in case authentication
+  fails (`-f`, `-C`); this gives better feedback about the unlock state
+  when not using the unlock indicator and is more inspired by `slock(1)`
 
 Install
 -------
@@ -68,7 +80,3 @@ mkdir -p build && cd build/
 
 make
 ```
-
-Upstream
---------
-Please submit pull requests to https://github.com/i3/i3lock
