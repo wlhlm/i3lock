@@ -59,6 +59,7 @@ typedef void (*ev_callback_t)(EV_P_ ev_timer *w, int revents);
 static void input_done(void);
 
 char color[7] = "ffffff";
+char fail_color[7] = "ff0000";
 uint32_t last_resolution[2];
 xcb_window_t win;
 static xcb_cursor_t cursor;
@@ -103,6 +104,17 @@ bool skip_repeated_empty_password = false;
  */
 void u8_dec(char *s, int *i) {
     (void)(isutf(s[--(*i)]) || isutf(s[--(*i)]) || isutf(s[--(*i)]) || --(*i));
+}
+
+bool parse_argument_color(const char *arg, char *res) {
+    /* Skip # if present */
+    if (arg[0] == '#')
+        arg++;
+
+    if (strlen(arg) != 6 || sscanf(arg, "%06[0-9a-fA-F]", res) != 1)
+        return false;
+    else
+        return true;
 }
 
 /*
@@ -1010,6 +1022,7 @@ int main(int argc, char *argv[]) {
         {"beep", no_argument, NULL, 'b'},
         {"dpms", no_argument, NULL, 'd'},
         {"color", required_argument, NULL, 'c'},
+        {"fail-color", required_argument, NULL, 'C'},
         {"pointer", no_argument, NULL, 'p'},
         {"debug", no_argument, NULL, 0},
         {"help", no_argument, NULL, 'h'},
@@ -1026,7 +1039,7 @@ int main(int argc, char *argv[]) {
     if ((username = pw->pw_name) == NULL)
         errx(EXIT_FAILURE, "pw->pw_name is NULL.");
 
-    char *optstring = "hvnbdc:pui:f:teI:";
+    char *optstring = "hvnbdc:C:pui:f:teI:";
     while ((o = getopt_long(argc, argv, optstring, longopts, &longoptind)) != -1) {
         switch (o) {
             case 'v':
@@ -1045,15 +1058,14 @@ int main(int argc, char *argv[]) {
                 break;
             }
             case 'c': {
-                char *arg = optarg;
-
-                /* Skip # if present */
-                if (arg[0] == '#')
-                    arg++;
-
-                if (strlen(arg) != 6 || sscanf(arg, "%06[0-9a-fA-F]", color) != 1)
+                if (!parse_argument_color(optarg, color))
                     errx(EXIT_FAILURE, "color is invalid, it must be given in 3-byte hexadecimal format: rrggbb");
 
+                break;
+            }
+            case 'C': {
+                if (!parse_argument_color(optarg, fail_color))
+                    errx(EXIT_FAILURE, "fail-color is invalid, it must be given in 3-byte hexadecimal format: rrggbb");
                 break;
             }
             case 'i':
@@ -1183,7 +1195,7 @@ int main(int argc, char *argv[]) {
     free(image_raw_format);
 
     /* Pixmap on which the image is rendered to (if any) */
-    xcb_pixmap_t bg_pixmap = draw_image(last_resolution, img);
+    xcb_pixmap_t bg_pixmap = draw_image(last_resolution, img, color);
 
     xcb_window_t stolen_focus = find_focused_window(conn, screen->root);
 

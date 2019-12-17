@@ -24,6 +24,8 @@ i3lock \- improved screen locker
 .IR image.png \|]
 .RB [\|\-c
 .IR color \|]
+.RB [\|\-C
+.IR color \|]
 .RB [\|\-t\|]
 .RB [\|\-p\|]
 .RB [\|\-u\|]
@@ -101,6 +103,11 @@ Display the given PNG image when login failed.
 .BI \-c\  rrggbb \fR,\ \fB\-\-color= rrggbb
 Turn the screen into the given color instead of white. Color must be given in 3-byte
 format: rrggbb (i.e. ff0000 is red).
+
+.TP
+.BI \-C\  rrggbb \fR,\ \fB\-\-fail-color= rrggbb
+In case of authentication failure, turn the screen into the given color instead of red. Color must be given in 3-byte
+format: rrggbb (i.e. 0000ff is blue).
 
 .TP
 .B \-t, \-\-tiling

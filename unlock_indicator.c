@@ -52,6 +52,8 @@ extern cairo_surface_t *fail_img;
 extern bool tile;
 /* The background color to use (in hex). */
 extern char color[7];
+/* The background color to use in case authentication fails (in hex). */
+extern char fail_color[7];
 
 /* Whether the failed attempts should be displayed. */
 extern bool show_failed_attempts;
@@ -82,7 +84,7 @@ auth_state_t auth_state;
  * resolution and returns it.
  *
  */
-xcb_pixmap_t draw_image(uint32_t *resolution, cairo_surface_t *img) {
+xcb_pixmap_t draw_image(uint32_t *resolution, cairo_surface_t *img, char *color) {
     xcb_pixmap_t bg_pixmap = XCB_NONE;
     const double scaling_factor = get_dpi_value() / 96.0;
     DEBUG("scaling_factor is %.f\n",
@@ -138,10 +140,10 @@ void redraw_screen(void) {
     DEBUG("redraw_screen(unlock_state = %d, auth_state = %d)\n", unlock_state, auth_state);
     if (auth_state == STATE_AUTH_WRONG) {
         DEBUG("drawing fail image, res %ux%u\n", last_resolution[0], last_resolution[1]);
-        bg_pixmap = draw_image(last_resolution, fail_img);
+        bg_pixmap = draw_image(last_resolution, fail_img, fail_color);
     }
     else
-        bg_pixmap = draw_image(last_resolution, img);
+        bg_pixmap = draw_image(last_resolution, img, color);
     xcb_change_window_attributes(conn, win, XCB_CW_BACK_PIXMAP, (uint32_t[1]){bg_pixmap});
     xcb_clear_area(conn, 0, win, 0, 0, last_resolution[0], last_resolution[1]);
     xcb_free_pixmap(conn, bg_pixmap);
