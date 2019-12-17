@@ -44,8 +44,9 @@ extern bool unlock_indicator;
 /* List of pressed modifiers, or NULL if none are pressed. */
 extern char *modifier_string;
 
-/* A Cairo surface containing the specified image (-i), if any. */
+/* Cairo surfaces containing the specified image (-i, -f), if any. */
 extern cairo_surface_t *img;
+extern cairo_surface_t *fail_img;
 
 /* Whether the image should be tiled. */
 extern bool tile;
@@ -77,11 +78,11 @@ unlock_state_t unlock_state;
 auth_state_t auth_state;
 
 /*
- * Draws global image with fill color onto a pixmap with the given
+ * Draws image with fill color onto a pixmap with the given
  * resolution and returns it.
  *
  */
-xcb_pixmap_t draw_image(uint32_t *resolution) {
+xcb_pixmap_t draw_image(uint32_t *resolution, cairo_surface_t *img) {
     xcb_pixmap_t bg_pixmap = XCB_NONE;
     const double scaling_factor = get_dpi_value() / 96.0;
     DEBUG("scaling_factor is %.f\n",
@@ -132,11 +133,16 @@ xcb_pixmap_t draw_image(uint32_t *resolution) {
  *
  */
 void redraw_screen(void) {
+    xcb_pixmap_t bg_pixmap;
+
     DEBUG("redraw_screen(unlock_state = %d, auth_state = %d)\n", unlock_state, auth_state);
-    xcb_pixmap_t bg_pixmap = draw_image(last_resolution);
+    if (auth_state == STATE_AUTH_WRONG) {
+        DEBUG("drawing fail image, res %ux%u\n", last_resolution[0], last_resolution[1]);
+        bg_pixmap = draw_image(last_resolution, fail_img);
+    }
+    else
+        bg_pixmap = draw_image(last_resolution, img);
     xcb_change_window_attributes(conn, win, XCB_CW_BACK_PIXMAP, (uint32_t[1]){bg_pixmap});
-    /* XXX: Possible optimization: Only update the area in the middle of the
-     * screen instead of the whole screen. */
     xcb_clear_area(conn, 0, win, 0, 0, last_resolution[0], last_resolution[1]);
     xcb_free_pixmap(conn, bg_pixmap);
     xcb_flush(conn);

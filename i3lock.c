@@ -89,6 +89,7 @@ static uint8_t xkb_base_error;
 static int randr_base = -1;
 
 cairo_surface_t *img = NULL;
+cairo_surface_t *fail_img = NULL;
 bool tile = false;
 bool ignore_empty_password = false;
 bool skip_repeated_empty_password = false;
@@ -219,8 +220,8 @@ ev_timer *stop_timer(ev_timer *timer_obj) {
 static void finish_input(void) {
     password[input_position] = '\0';
     unlock_state = STATE_KEY_PRESSED;
-    redraw_screen();
     input_done();
+    redraw_screen();
 }
 
 /*
@@ -778,6 +779,30 @@ static bool verify_png_image(const char *image_path) {
     return true;
 }
 
+/*
+ * Load PNG image into a cairo surface.
+ *
+ */
+static cairo_surface_t *load_image(const char *image_path, const char *raw_format) {
+    cairo_surface_t *img = NULL;
+
+    if (raw_format != NULL && image_path != NULL)
+        img = read_raw_image(image_path, raw_format);
+    else
+        if (verify_png_image(image_path)) {
+            /* Create a pixmap to render on, fill it with the background color */
+            img = cairo_image_surface_create_from_png(image_path);
+
+            if (cairo_surface_status(img) != CAIRO_STATUS_SUCCESS) {
+                fprintf(stderr, "Could not load image \"%s\": %s\n",
+                        image_path, cairo_status_to_string(cairo_surface_status(img)));
+                img = NULL;
+            }
+        }
+
+    return img;
+}
+
 #ifndef __OpenBSD__
 /*
  * Callback function for PAM. We only react on password request callbacks.
@@ -971,6 +996,7 @@ int main(int argc, char *argv[]) {
     char *username;
     char *image_path = NULL;
     char *image_raw_format = NULL;
+    char *fail_image_path = NULL;
 #ifndef __OpenBSD__
     int ret;
     struct pam_conv conv = {conv_callback, NULL};
@@ -989,6 +1015,7 @@ int main(int argc, char *argv[]) {
         {"help", no_argument, NULL, 'h'},
         {"image", required_argument, NULL, 'i'},
         {"raw", required_argument, NULL, 0},
+        {"fail-image", required_argument, NULL, 'f'},
         {"tiling", no_argument, NULL, 't'},
         {"ignore-empty-password", no_argument, NULL, 'e'},
         {"inactivity-timeout", required_argument, NULL, 'I'},
@@ -999,7 +1026,7 @@ int main(int argc, char *argv[]) {
     if ((username = pw->pw_name) == NULL)
         errx(EXIT_FAILURE, "pw->pw_name is NULL.");
 
-    char *optstring = "hvnbdc:pui:teI:";
+    char *optstring = "hvnbdc:pui:f:teI:";
     while ((o = getopt_long(argc, argv, optstring, longopts, &longoptind)) != -1) {
         switch (o) {
             case 'v':
@@ -1032,6 +1059,9 @@ int main(int argc, char *argv[]) {
             case 'i':
                 image_path = strdup(optarg);
                 break;
+            case 'f':
+                fail_image_path = strdup(optarg);
+                break;
             case 't':
                 tile = true;
                 break;
@@ -1050,7 +1080,7 @@ int main(int argc, char *argv[]) {
                 break;
             default:
                 errx(EXIT_FAILURE, "Syntax: i3lock [-v] [-n] [-b] [-d] [-c color] [-u] [-p]"
-                                   " [-i image.png] [-t] [-e] [-I timeout]");
+                                   " [-i image.png] [-f image.png] [-t] [-e] [-I timeout]");
         }
     }
 
@@ -1146,26 +1176,14 @@ int main(int argc, char *argv[]) {
     xcb_change_window_attributes(conn, screen->root, XCB_CW_EVENT_MASK,
                                  (uint32_t[]){XCB_EVENT_MASK_STRUCTURE_NOTIFY});
 
-    if (image_raw_format != NULL && image_path != NULL) {
-        /* Read image. 'read_raw_image' returns NULL on error,
-         * so we don't have to handle errors here. */
-        img = read_raw_image(image_path, image_raw_format);
-    } else if (verify_png_image(image_path)) {
-        /* Create a pixmap to render on, fill it with the background color */
-        img = cairo_image_surface_create_from_png(image_path);
-        /* In case loading failed, we just pretend no -i was specified. */
-        if (cairo_surface_status(img) != CAIRO_STATUS_SUCCESS) {
-            fprintf(stderr, "Could not load image \"%s\": %s\n",
-                    image_path, cairo_status_to_string(cairo_surface_status(img)));
-            img = NULL;
-        }
-    }
-
+    img = load_image(image_path, image_raw_format);
+    fail_img = load_image(fail_image_path, image_raw_format);
     free(image_path);
+    free(fail_image_path);
     free(image_raw_format);
 
     /* Pixmap on which the image is rendered to (if any) */
-    xcb_pixmap_t bg_pixmap = draw_image(last_resolution);
+    xcb_pixmap_t bg_pixmap = draw_image(last_resolution, img);
 
     xcb_window_t stolen_focus = find_focused_window(conn, screen->root);
 
